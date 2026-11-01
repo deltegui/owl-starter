@@ -1,0 +1,18 @@
+{
+    "application": {
+        "name": "My app"
+    },
+    "addr": ":8080",
+    "secret": "REPLACE-WITH-32-BYTES-OF-SECRET!!",
+    "cookieSecure": false,
+    "logger": {
+        "level": "info"
+    },
+    "database": {
+        "url": "postgres://postgres:app@localhost:5432/app?sslmode=disable"
+    },
+    "admin": {
+        "email": "admin@example.com",
+        "password": "change-me-please"
+    }
+}
