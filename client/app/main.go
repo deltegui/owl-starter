@@ -9,11 +9,15 @@ import (
 	"github.com/deltegui/owl/v3/island"
 
 	homeweb "github.com/deltegui/owl-starter/feature/home/web"
+	"github.com/deltegui/owl-starter/web/ui/datepicker"
+	selectui "github.com/deltegui/owl-starter/web/ui/select"
 )
 
 func main() {
 	island.Run(
 		homeweb.Counter,
-		homeweb.SelectAjax,
+		homeweb.ReportTabs,
+		selectui.Select,
+		datepicker.Picker,
 	)
 }

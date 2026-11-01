@@ -1,8 +1,6 @@
 package home
 
 import (
-	"strings"
-
 	"github.com/deltegui/hx"
 	"github.com/deltegui/owl/v3"
 	"github.com/deltegui/owl/v3/island"
@@ -11,21 +9,26 @@ import (
 	"github.com/deltegui/owl-starter/domain/user"
 	homeweb "github.com/deltegui/owl-starter/feature/home/web"
 	"github.com/deltegui/owl-starter/web/layout"
+	selectui "github.com/deltegui/owl-starter/web/ui/select"
 )
 
-func SelectUserAjaxIsland(items []homeweb.SelectAjaxItem) island.Instance {
-	return island.Mount(homeweb.SelectAjax, homeweb.SelectAajaxState{
-		ID:             "users",
-		SourceEndpoint: "/home/selectUsersAjax",
-		Items:          items,
+func SelectUserAjaxIsland(lang string, items []selectui.Option) island.Instance {
+	return island.Mount(selectui.Select, selectui.State{
+		Name:      "users",
+		Endpoint:  "/home/selectUsersAjax",
+		Options:   items,
+		Clearable: true,
+		Lang:      lang,
 	})
 }
 
-func SelectGenderAjaxIsland(items []homeweb.SelectAjaxItem) island.Instance {
-	return island.Mount(homeweb.SelectAjax, homeweb.SelectAajaxState{
-		ID:             "genders",
-		SourceEndpoint: "/home/selectGenderAjax",
-		Items:          items,
+func SelectGenderAjaxIsland(lang string, items []selectui.Option) island.Instance {
+	return island.Mount(selectui.Select, selectui.State{
+		Name:      "genders",
+		Endpoint:  "/home/selectGenderAjax",
+		Options:   items,
+		Clearable: true,
+		Lang:      lang,
 	})
 }
 
@@ -42,7 +45,7 @@ var localizations = localizer.Dict{
 	},
 }
 
-var selectUserItems = []homeweb.SelectAjaxItem{
+var selectUserItems = []selectui.Option{
 	{
 		Label: "Diego",
 		Value: "0",
@@ -53,7 +56,7 @@ var selectUserItems = []homeweb.SelectAjaxItem{
 	},
 }
 
-var selectGenderItems = []homeweb.SelectAjaxItem{
+var selectGenderItems = []selectui.Option{
 	{
 		Label: "Masculino",
 		Value: "0",
@@ -80,51 +83,19 @@ var selectGenderItems = []homeweb.SelectAjaxItem{
 	},
 }
 
-func handleUsersSelectAjax() owl.Handler {
+func handleUsersSelectAjax() owl.Handler { return handleSelectAjax(selectUserItems) }
+
+func handleGenderSelectAjax() owl.Handler { return handleSelectAjax(selectGenderItems) }
+
+// handleSelectAjax answers GET ?q=text with the items that match it, as a JSON
+// array of options. Filter does not tell capital letters or accents apart.
+func handleSelectAjax(items []selectui.Option) owl.Handler {
 	return func(ctx owl.Ctx) error {
-		var vm homeweb.SelectAjaxSeach
-		if err := ctx.ParseJson(&vm); err != nil {
-			return ctx.BadRequest()
+		found := selectui.Filter(items, ctx.Req.URL.Query().Get("q"))
+		if found == nil {
+			found = []selectui.Option{}
 		}
-		if vm.Search == "" {
-			return ctx.Json(homeweb.SelectAajaxState{
-				Items: selectUserItems,
-			})
-		}
-
-		filtered := []homeweb.SelectAjaxItem{}
-		for _, element := range selectUserItems {
-			if strings.Contains(element.Label, vm.Search) {
-				filtered = append(filtered, element)
-			}
-		}
-		return ctx.Json(homeweb.SelectAajaxState{
-			Items: filtered,
-		})
-	}
-}
-
-func handleGenderSelectAjax() owl.Handler {
-	return func(ctx owl.Ctx) error {
-		var vm homeweb.SelectAjaxSeach
-		if err := ctx.ParseJson(&vm); err != nil {
-			return ctx.BadRequest()
-		}
-		if vm.Search == "" {
-			return ctx.Json(homeweb.SelectAajaxState{
-				Items: selectGenderItems,
-			})
-		}
-
-		filtered := []homeweb.SelectAjaxItem{}
-		for _, element := range selectGenderItems {
-			if strings.Contains(element.Label, vm.Search) {
-				filtered = append(filtered, element)
-			}
-		}
-		return ctx.Json(homeweb.SelectAajaxState{
-			Items: filtered,
-		})
+		return ctx.Json(found)
 	}
 }
 
@@ -136,8 +107,11 @@ func handleShowIndex() owl.Handler {
 			Count: 20,
 			Lang:  ctx.GetCurrentLanguage(),
 		})
-		selectAjaxUsers := SelectUserAjaxIsland(selectUserItems)
-		selectAjaxGender := SelectGenderAjaxIsland(selectGenderItems)
+		selectAjaxUsers := SelectUserAjaxIsland(ctx.GetCurrentLanguage(), selectUserItems)
+		selectAjaxGender := SelectGenderAjaxIsland(ctx.GetCurrentLanguage(), selectGenderItems)
+		demoNodes, demoIslands := selectDemos(ctx.GetCurrentLanguage())
+		dateNodes, dateIslands := dateDemos(ctx.GetCurrentLanguage())
+		reportTabs := island.Mount(homeweb.ReportTabs, homeweb.ReportTabsState{Lang: ctx.GetCurrentLanguage()})
 		return layout.Render(ctx, layout.Page{
 			Title: loc.Get("Title"),
 			Content: hx.Div().Body(
@@ -146,12 +120,16 @@ func handleShowIndex() owl.Handler {
 				counter.Node(),
 				selectAjaxUsers.Node(),
 				selectAjaxGender.Node(),
+				reportTabs.Node(),
+				hx.Div().Class("mt-4").Body(demoNodes...),
+				hx.Div().Class("mt-4").Body(dateNodes...),
 			),
-			Islands: []island.Instance{
+			Islands: append([]island.Instance{
 				counter,
 				selectAjaxUsers,
 				selectAjaxGender,
-			},
+				reportTabs,
+			}, append(demoIslands, dateIslands...)...),
 		})
 	}
 }
