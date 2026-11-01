@@ -7,6 +7,7 @@ import (
 	bs "github.com/deltegui/hxbs"
 	"github.com/deltegui/owl/v3"
 	"github.com/deltegui/owl/v3/hxui"
+	"github.com/deltegui/owl/v3/island"
 
 	"github.com/deltegui/owl-starter/web/locale"
 )
@@ -15,10 +16,16 @@ import (
 // is the brand of the top bar and the end of every title.
 var Name = "app"
 
+// Bundle is the one WASM of the app (client/app). A page loads it only if it has islands.
+const Bundle = "app"
+
 // Page is what a handler gives to Render.
 type Page struct {
 	Title   string // already translated
 	Content hx.INode
+	// Islands are the ones the page has, from island.Mount. Their state travels
+	// with the page; put their elements in Content with Instance.Node().
+	Islands []island.Instance
 }
 
 func Render(ctx owl.Ctx, p Page) error {
@@ -29,11 +36,18 @@ func Render(ctx owl.Ctx, p Page) error {
 
 func build(ctx owl.Ctx, p Page) hx.INode {
 	vd := hxui.NewViewData(ctx, locale.Shared)
-	return hxui.Page(ctx, p.Title+" · "+Name,
-		[]hx.INode{
+	opts := hxui.AppOptions{
+		Title: p.Title + " · " + Name,
+		Head: []hx.INode{
 			hxui.Stylesheet(bs.CSS),
 			hx.Link().Attribute("rel", "icon").Href("/favicon.svg"),
 		},
+		Islands: p.Islands,
+	}
+	if len(p.Islands) > 0 {
+		opts.Bundle = Bundle
+	}
+	return hxui.App(ctx, opts,
 		topbar(ctx, vd),
 		bs.Container(p.Content).Class("py-4"))
 }

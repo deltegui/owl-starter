@@ -1,4 +1,4 @@
-.PHONY: init db run dev test build
+.PHONY: init db wasm release run dev test build
 
 # Makes conf.json from conf.example.json with a random 32 byte secret. It does not touch an existing one.
 init:
@@ -9,15 +9,29 @@ init:
 db:
 	docker compose up -d postgres
 
-run:
+# The one WASM of the app, and the wasm_exec.js that goes with the Go that built it.
+# The server embeds web/static, so build this before `go build`.
+wasm:
+	mkdir -p web/static/js
+	GOOS=js GOARCH=wasm go build -o web/static/js/app.wasm ./client/app
+	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" web/static/js/
+
+# The same WASM, much smaller, with TinyGo.
+release:
+	mkdir -p web/static/js
+	GOOS=js GOARCH=wasm tinygo build --no-debug -opt=z -o web/static/js/app.wasm ./client/app
+	cp "$$(tinygo env TINYGOROOT)/targets/wasm_exec.js" web/static/js/
+
+run: wasm
 	go run ./cmd/app
 
 # Rebuilds on change. Needs air: go install github.com/air-verse/air@latest
-dev:
+dev: wasm
 	air
 
 test:
 	go test -race ./...
+	GOOS=js GOARCH=wasm go vet ./...
 
-build:
+build: wasm
 	go build -o bin/app ./cmd/app
